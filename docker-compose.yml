@@ -1,23 +1,36 @@
 version: '3.8'
 
 services:
+  edge-proxy:
+    image: nginx:alpine
+    container_name: omnidesk-edge-proxy
+    restart: unless-stopped
+    ports:
+      # Expose the entire platform securely through port 8080 to avoid conflicts
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - omnidesk-network
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: omnidesk-backend
     restart: unless-stopped
-    ports:
-      - "5000:5000"
+    # PORTS REMOVED: Backend is now completely sealed off from the public internet. 
+    # It can only be accessed through the edge-proxy.
     environment:
       - NODE_ENV=production
       - PORT=5000
-      - FRONTEND_URL=http://localhost:5173
-      # Automatically ingest host environment variables or fallback to mock keys
+      - FRONTEND_URL=http://localhost:8080
       - GROQ_API_KEY=${GROQ_API_KEY:-mock-groq-key}
       - PINECONE_API_KEY=${PINECONE_API_KEY:-mock-pinecone-key}
     volumes:
-      # Persistent storage mounts ensure SQLite data and Winston logs survive container teardowns
       - backend-logs:/usr/src/app/logs
       - backend-data:/usr/src/app/data
     networks:
@@ -28,13 +41,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # Bake the backend networking route directly into the Nginx static assets
-        - VITE_BACKEND_URL=http://localhost:5000
+        # Route socket/api requests to the Edge Proxy on port 8080
+        - VITE_BACKEND_URL=http://localhost:8080
     container_name: omnidesk-frontend
     restart: unless-stopped
-    ports:
-      # Map internal Nginx port 80 to external port 5173 to mimic local dev expectations
-      - "5173:80" 
+    # PORTS REMOVED: Frontend is sealed off. Proxy serves the static assets.
     depends_on:
       - backend
     networks:
