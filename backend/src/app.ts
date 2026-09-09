@@ -44,9 +44,15 @@ app.get('/api/inventory', (req, res) => {
     const items = db.prepare('SELECT sku, name, price, stock_level FROM inventory').all();
     res.json(items);
   } catch (error) {
-    res.status(500).json({ error: 'Database query failed' });
+    // Manually pass to the error boundary if inside synchronous try/catch
+    throw new Error('Database query failed: ' + (error as Error).message);
   }
 });
+
+import { globalErrorHandler } from './middleware/errorHandler';
+
+// 6. Global Error Boundary (Must be the very last middleware)
+app.use(globalErrorHandler);
 
 // Export the hardened Express instance for server.ts to wrap with Socket.io
 export default app;
