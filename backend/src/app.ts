@@ -1,50 +1,52 @@
-import express, { Application, Request, Response, NextFunction } from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import { uploadMiddleware } from "./middleware/upload";
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import { db } from './db/index';
 
-dotenv.config();
+const app = express();
 
-const app: Application = express();
+// 1. Core Security Headers (Helmet)
+// Disables X-Powered-By, enables strict HSTS, and forces clickjacking protection
+app.use(helmet());
 
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
-    credentials: true,
-  }),
-);
+// 2. Cross-Origin Resource Sharing (CORS)
+// Strictly binds API access to the approved frontend domain
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// 3. API Rate Limiting (DDoS Protection)
+// Restricts each IP to 100 requests per 15-minute window for standard REST endpoints
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 100, 
+  message: { error: 'Too many requests from this IP, please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', apiLimiter);
 
-// Secure File Upload Route
-app.post('/api/upload', uploadMiddleware.single('file'), (req: Request, res: Response) => {
-  if (!req.file) {
-    // If we reach here without a file, Multer stripped it due to a limit or none was provided
-    return res.status(400).json({ success: false, message: 'No file securely parsed.' });
+// 4. Payload Parsing
+app.use(express.json({ limit: '1mb' })); // Restricts JSON body size to prevent payload exhaustion
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// 5. REST API Routes
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/inventory', (req, res) => {
+  try {
+    const items = db.prepare('SELECT sku, name, price, stock_level FROM inventory').all();
+    res.json(items);
+  } catch (error) {
+    res.status(500).json({ error: 'Database query failed' });
   }
-  res.status(201).json({
-    success: true,
-    message: 'File successfully persisted locally.',
-    filename: req.file.filename,
-    size: req.file.size
-  });
 });
 
-app.get("/health", (req: Request, res: Response) => {
-  res.status(200).json({
-    status: "healthy",
-    timestamp: new Date().toISOString(),
-  });
-});
-
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error("[Express Error]", err.stack);
-  res.status(500).json({
-    success: false,
-    message: "Internal Server Error",
-    error: process.env.NODE_ENV === "development" ? err.message : undefined,
-  });
-});
-
+// Export the hardened Express instance for server.ts to wrap with Socket.io
 export default app;
