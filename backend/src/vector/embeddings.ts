@@ -1,53 +1,38 @@
-import { Embeddings } from "@langchain/core/embeddings";
-import dotenv from "dotenv";
+import { HuggingFaceInferenceEmbeddings } from '@langchain/community/embeddings/hf';
+import dotenv from 'dotenv';
 
 dotenv.config();
 
-export class LocalMultilingualEmbeddings extends Embeddings {
-  constructor() {
-    super({});
-  }
+const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
 
-  async embedDocuments(texts: string[]): Promise<number[][]> {
-    return texts.map((text) => this.generateDeterministicVector(text));
-  }
-
-  async embedQuery(text: string): Promise<number[]> {
-    return this.generateDeterministicVector(text);
-  }
-
-  private generateDeterministicVector(text: string): number[] {
-    const vector = new Array(384).fill(0);
-    for (let i = 0; i < text.length; i++) {
-      const charCode = text.charCodeAt(i);
-      const index = (charCode * (i + 1)) % 384;
-      vector[index] = Number((vector[index] + charCode / 1000).toFixed(4));
-    }
-    const magnitude =
-      Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0)) || 1;
-    return vector.map((val) => Number((val / magnitude).toFixed(6)));
-  }
+if (!HF_API_KEY) {
+  throw new Error('[Embeddings] HUGGINGFACE_API_KEY is completely missing from .env. The system cannot perform RAG retrieval.');
 }
 
-export const embeddingService = new LocalMultilingualEmbeddings();
+/**
+ * Enterprise-grade Multilingual Embedding Pipeline
+ * Model: sentence-transformers/paraphrase-multilingual-MiniLM-L6-v2
+ * Purpose: Supports English, Hinglish, Gujlish semantics seamlessly mapping into a 384-dimensional vector space.
+ */
+export const embeddingService = new HuggingFaceInferenceEmbeddings({
+  apiKey: HF_API_KEY,
+  model: 'sentence-transformers/paraphrase-multilingual-MiniLM-L6-v2',
+});
 
+// Utility function to test embedding generation locally with actual Hugging Face inference
 export async function testEmbeddings() {
-  console.log(
-    '[Embeddings] Generating local multilingual vectors for "Hello, kem cho? Where is my order?"...',
-  );
+  console.log('[Embeddings] Calling Hugging Face API for: "Hello, kem cho? Where is my order?"...');
   try {
-    const vector = await embeddingService.embedQuery(
-      "Hello, kem cho? Where is my order?",
-    );
-    console.log(
-      `[Embeddings] Success. Vector dimension: ${vector.length} (Expected: 384)`,
-    );
+    const vector = await embeddingService.embedQuery('Hello, kem cho? Where is my order?');
+    console.log(`[Embeddings] Success! Real Vector dimension received: ${vector.length} (Expected: 384)`);
     return vector;
   } catch (error) {
-    console.error("[Embeddings] Failed to generate vector.", error);
+    console.error('[Embeddings] Failed to generate vector. Check your HUGGINGFACE_API_KEY validity or rate limits.', error);
+    process.exit(1);
   }
 }
 
+// If executed directly via CLI
 if (require.main === module) {
   testEmbeddings();
 }
