@@ -27,6 +27,8 @@ async function supervisorNode(state: typeof AgentState.State) {
 }
 
 import { logisticsNode } from './logistics';
+import { techSupportNode } from './techSupport';
+import { financeNode } from './finance';
 
 /**
  * Multi-Agent Swarm Orchestrator Engine
@@ -35,9 +37,8 @@ import { logisticsNode } from './logistics';
 export const swarmEngine = new StateGraph(AgentState)
   .addNode('supervisor', supervisorNode)
   .addNode('logistics_agent', logisticsNode)
-  // Placeholder mock nodes to allow strict graph compilation before Steps 11-12
-  .addNode('tech_support_agent', async (state) => { console.log('[TechSupport] Processing...'); return { next_agent: 'END' }; })
-  .addNode('finance_agent', async (state) => { console.log('[Finance] Processing...'); return { next_agent: 'END' }; })
+  .addNode('tech_support_agent', techSupportNode)
+  .addNode('finance_agent', financeNode)
   // Define execution edges
   .addEdge(START, 'supervisor')
   // Conditional router parsing supervisor output
