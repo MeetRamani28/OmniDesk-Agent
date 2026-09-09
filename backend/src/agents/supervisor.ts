@@ -29,6 +29,7 @@ async function supervisorNode(state: typeof AgentState.State) {
 import { logisticsNode } from './logistics';
 import { techSupportNode } from './techSupport';
 import { financeNode } from './finance';
+import { refundNode } from './refund';
 
 /**
  * Multi-Agent Swarm Orchestrator Engine
@@ -39,6 +40,7 @@ export const swarmEngine = new StateGraph(AgentState)
   .addNode('logistics_agent', logisticsNode)
   .addNode('tech_support_agent', techSupportNode)
   .addNode('finance_agent', financeNode)
+  .addNode('refund_agent', refundNode)
   // Define execution edges
   .addEdge(START, 'supervisor')
   // Conditional router parsing supervisor output
@@ -46,10 +48,12 @@ export const swarmEngine = new StateGraph(AgentState)
     logistics_agent: 'logistics_agent',
     tech_support_agent: 'tech_support_agent',
     finance_agent: 'finance_agent',
+    refund_agent: 'refund_agent',
   })
   .addEdge('logistics_agent', END)
   .addEdge('tech_support_agent', END)
   .addEdge('finance_agent', END)
+  .addEdge('refund_agent', END)
   .compile();
 
 // Verification execution
