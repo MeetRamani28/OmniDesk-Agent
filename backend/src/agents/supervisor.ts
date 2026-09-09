@@ -26,14 +26,16 @@ async function supervisorNode(state: typeof AgentState.State) {
   return { next_agent: route };
 }
 
+import { logisticsNode } from './logistics';
+
 /**
  * Multi-Agent Swarm Orchestrator Engine
  * Compiles the LangGraph cyclic state machine with strict conditional routing.
  */
 export const swarmEngine = new StateGraph(AgentState)
   .addNode('supervisor', supervisorNode)
-  // Placeholder mock nodes to allow strict graph compilation before Steps 10-12
-  .addNode('logistics_agent', async (state) => { console.log('[Logistics] Processing...'); return { next_agent: 'END' }; })
+  .addNode('logistics_agent', logisticsNode)
+  // Placeholder mock nodes to allow strict graph compilation before Steps 11-12
   .addNode('tech_support_agent', async (state) => { console.log('[TechSupport] Processing...'); return { next_agent: 'END' }; })
   .addNode('finance_agent', async (state) => { console.log('[Finance] Processing...'); return { next_agent: 'END' }; })
   // Define execution edges
