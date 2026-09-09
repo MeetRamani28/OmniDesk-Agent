@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: omnidesk-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - FRONTEND_URL=http://localhost:5173
+      # Automatically ingest host environment variables or fallback to mock keys
+      - GROQ_API_KEY=${GROQ_API_KEY:-mock-groq-key}
+      - PINECONE_API_KEY=${PINECONE_API_KEY:-mock-pinecone-key}
+    volumes:
+      # Persistent storage mounts ensure SQLite data and Winston logs survive container teardowns
+      - backend-logs:/usr/src/app/logs
+      - backend-data:/usr/src/app/data
+    networks:
+      - omnidesk-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Bake the backend networking route directly into the Nginx static assets
+        - VITE_BACKEND_URL=http://localhost:5000
+    container_name: omnidesk-frontend
+    restart: unless-stopped
+    ports:
+      # Map internal Nginx port 80 to external port 5173 to mimic local dev expectations
+      - "5173:80" 
+    depends_on:
+      - backend
+    networks:
+      - omnidesk-network
+
+networks:
+  omnidesk-network:
+    driver: bridge
+
+volumes:
+  backend-logs:
+  backend-data:
