@@ -1,0 +1,9 @@
+node_modules
+dist
+logs
+local.db
+local.db-shm
+local.db-wal
+.env
+.git
+.DS_Store
