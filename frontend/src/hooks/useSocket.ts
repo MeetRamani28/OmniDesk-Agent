@@ -18,10 +18,9 @@ export function useSocket() {
     socket.on('disconnect', onDisconnect);
 
     return () => {
-      // Cleanup prevents memory leaks on unmount
+      // Cleanup event listeners (do not disconnect the singleton socket on unmount during StrictMode)
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
-      disconnectSocket();
     };
   }, []);
 

@@ -16,8 +16,10 @@ async function supervisorNode(state: typeof AgentState.State) {
   
   let route = 'logistics_agent'; // default fallback
   
-  if (content.includes('billing') || content.includes('refund')) {
+  if (content.includes('billing') || content.includes('fraud')) {
     route = 'finance_agent';
+  } else if (content.includes('refund') || content.includes('late')) {
+    route = 'refund_agent';
   } else if (content.includes('technical') || content.includes('error')) {
     route = 'tech_support_agent';
   }
